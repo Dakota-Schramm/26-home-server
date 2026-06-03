@@ -1,0 +1,24 @@
+services:
+  mailer:
+    build:
+      context: .
+      dockerfile: packages/mailer/Dockerfile
+    env_file: .env
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  scraper:
+    build:
+      context: .
+      dockerfile: packages/scraper/Dockerfile
+    env_file: .env
+    depends_on:
+      mailer:
+        condition: service_healthy
+    restart: unless-stopped
