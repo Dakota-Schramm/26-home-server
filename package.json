@@ -1,12 +1,9 @@
 {
   "name": "home-server",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "scripts": {
-    "build": "npm run build -ws --if-present",
-    "dev:mailer": "npm run dev --workspace=packages/mailer",
-    "dev:scraper": "npm run dev --workspace=packages/scraper"
+    "build": "pnpm -r run build",
+    "dev:mailer": "pnpm --filter=@home-server/mailer run dev",
+    "dev:scraper": "pnpm --filter=@home-server/scraper run dev"
   }
 }

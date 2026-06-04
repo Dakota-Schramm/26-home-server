@@ -1,18 +1,20 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-COPY package.json ./
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+COPY package.json pnpm-workspace.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/scraper/package.json ./packages/scraper/
 
-RUN npm install --workspace=packages/shared --workspace=packages/scraper
+RUN pnpm install --filter=@home-server/shared --filter=@home-server/scraper
 
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/scraper ./packages/scraper
 
-RUN npm run build --workspace=packages/shared
-RUN npm run build --workspace=packages/scraper
+RUN pnpm --filter=@home-server/shared run build
+RUN pnpm --filter=@home-server/scraper run build
 
 FROM node:22-alpine
 WORKDIR /app
