@@ -3,72 +3,72 @@ import { VercelScraper } from "./scrapers/vercel";
 import { MozillaScraper } from "./scrapers/mozilla";
 import { AppleScraper } from "./scrapers/apple";
 import { sendToMailer } from "./mailerClient";
-import { openDb, getChangedJobs, upsertJobs } from "./db";
+import { openDb, getChangedJobs, upsertJobs, getScraperLastRan, upsertScraperRun } from "./db";
 import { config } from "./config";
 
-const scrapers = [
-  { company: "Vercel", instance: new VercelScraper() },
-  { company: "Mozilla", instance: new MozillaScraper() },
-  { company: "Apple", instance: new AppleScraper() },
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
+
+export const scrapers = [
+  { id: 1, company: "Vercel", instance: new VercelScraper() },
+  { id: 2, company: "Mozilla", instance: new MozillaScraper() },
+  { id: 3, company: "Apple", instance: new AppleScraper() },
 ];
 
-export async function run(): Promise<void> {
-  console.log("[scraper] starting run");
+export async function runScraper(id: number): Promise<void> {
+  const scraper = scrapers.find((s) => s.id === id);
+  if (!scraper) throw new Error(`No scraper with id ${id}`);
 
+  const { company, instance } = scraper;
   const db = openDb(config.dbPath);
 
-  const settled = await Promise.allSettled(
-    scrapers.map(({ company, instance }) =>
-      instance
-        .scrape()
-        .then((jobs) => {
-          if (jobs.length === 0) {
-            console.warn(`[scraper] ${company}: 0 jobs found (selector may have changed)`);
-          } else {
-            console.log(`[scraper] ${company}: ${jobs.length} jobs`);
-          }
-          return { ok: true as const, company, jobs };
-        })
-        .catch((err: Error) => {
-          console.error(`[scraper] ${company} failed: ${err.message}`);
-          return { ok: false as const, company, error: err.message };
-        })
-    )
-  );
+  const lastRanAt = getScraperLastRan(db, id);
+  if (lastRanAt) {
+    const elapsed = Date.now() - new Date(lastRanAt).getTime();
+    if (elapsed < TWENTY_FOUR_HOURS_MS) {
+      console.log(`[scraper] ${company}: skipping, last ran ${Math.round(elapsed / 60_000)} min ago`);
+      return;
+    }
+  }
 
-  const results: ScrapeResult[] = settled.map((s) =>
-    s.status === "fulfilled" ? s.value : { ok: false, company: "unknown", error: String(s.reason) }
-  );
+  console.log(`[scraper] ${company}: starting`);
 
-  const filteredResults: ScrapeResult[] = results.map((result) => {
-    if (!result.ok) return result;
-    const changedJobs = getChangedJobs(db, result.jobs);
-    const newCount = changedJobs.filter((j) => !j.isUpdate).length;
-    const updatedCount = changedJobs.filter((j) => j.isUpdate).length;
-    console.log(
-      `[scraper] ${result.company}: ${newCount} new, ${updatedCount} updated (of ${result.jobs.length} total)`
-    );
-    return { ...result, jobs: changedJobs };
-  });
+  let result: ScrapeResult;
+  let jobs = [];
 
-  const changedJobs = filteredResults.flatMap((r) => (r.ok ? r.jobs : []));
+  try {
+    const scraped = await instance.scrape();
+    jobs = getChangedJobs(db, scraped);
 
-  if (changedJobs.length === 0) {
-    console.log("[scraper] no new or updated jobs, skipping email");
+    if (scraped.length === 0) {
+      console.warn(`[scraper] ${company}: 0 jobs found (selector may have changed)`);
+    } else {
+      console.log(`[scraper] ${company}: ${scraped.length} jobs, ${jobs.length} new/updated`);
+    }
+
+    result = { ok: true, company, jobs };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    console.error(`[scraper] ${company} failed: ${error}`);
+    result = { ok: false, company, error };
+  }
+
+  if (result.ok && result.jobs.length === 0) {
+    upsertScraperRun(db, id, company);
     return;
   }
 
   const payload: MailPayload = {
-    results: filteredResults,
+    results: [result],
     triggeredAt: new Date().toISOString(),
   };
 
   try {
     await sendToMailer(payload);
-    console.log("[scraper] payload sent to mailer");
-    upsertJobs(db, changedJobs);
+    console.log(`[scraper] ${company}: payload sent to mailer`);
+    if (result.ok) upsertJobs(db, result.jobs);
+    upsertScraperRun(db, id, company);
   } catch (err) {
-    console.error("[scraper] could not reach mailer:", err);
+    console.error(`[scraper] could not reach mailer:`, err);
     process.exit(1);
   }
 }

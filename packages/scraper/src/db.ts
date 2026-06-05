@@ -16,6 +16,11 @@ export function openDb(path: string): Database.Database {
       location TEXT,
       checksum TEXT NOT NULL,
       last_updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS scrapers (
+      id INTEGER PRIMARY KEY,
+      company TEXT NOT NULL,
+      last_ran_at TEXT
     )
   `);
 
@@ -38,6 +43,21 @@ export function getChangedJobs(db: Database.Database, jobs: JobListing[]): JobLi
     if (row.checksum !== computeChecksum(job)) return [{ ...job, isUpdate: true }];
     return [];
   });
+}
+
+export function getScraperLastRan(db: Database.Database, id: number): string | null {
+  const row = db.prepare<[number], { last_ran_at: string | null }>(
+    "SELECT last_ran_at FROM scrapers WHERE id = ?"
+  ).get(id);
+  return row?.last_ran_at ?? null;
+}
+
+export function upsertScraperRun(db: Database.Database, id: number, company: string): void {
+  db.prepare(`
+    INSERT INTO scrapers (id, company, last_ran_at)
+    VALUES (?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET last_ran_at = excluded.last_ran_at
+  `).run(id, company, new Date().toISOString());
 }
 
 export function upsertJobs(db: Database.Database, jobs: JobListing[]): void {
