@@ -3,11 +3,11 @@ WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/mailer/package.json ./packages/mailer/
 
-RUN pnpm install --filter=@home-server/shared --filter=@home-server/mailer
+RUN pnpm install --frozen-lockfile --filter=@home-server/shared --filter=@home-server/mailer
 
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared

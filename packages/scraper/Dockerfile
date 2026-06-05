@@ -5,11 +5,11 @@ RUN apk add --no-cache python3 make g++
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/scraper/package.json ./packages/scraper/
 
-RUN pnpm install --filter=@home-server/shared --filter=@home-server/scraper
+RUN pnpm install --frozen-lockfile --filter=@home-server/shared --filter=@home-server/scraper
 
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
