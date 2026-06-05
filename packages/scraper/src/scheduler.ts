@@ -2,7 +2,7 @@ import { scrapers, runScraper } from "./runner";
 
 export function startScheduler(): void {
   const count = scrapers.length;
-  const intervalMs = Math.floor((24 * 60 * 60 * 1000) / count);
+  const intervalMs = Math.floor((1000 * 60 * 60) / count);
 
   console.log(
     `[scraper] ${count} scrapers, interval: ${Math.round(intervalMs / 60_000)} min`
