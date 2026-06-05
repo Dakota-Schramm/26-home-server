@@ -25,6 +25,7 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/packages/scraper/dist ./packages/scraper/dist
 COPY --from=builder /app/packages/scraper/package.json ./packages/scraper/package.json
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/scraper/node_modules ./packages/scraper/node_modules
 
 CMD ["node", "packages/scraper/dist/index.js"]

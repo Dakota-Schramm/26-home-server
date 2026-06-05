@@ -23,6 +23,7 @@ COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/package.json
 COPY --from=builder /app/packages/mailer/dist ./packages/mailer/dist
 COPY --from=builder /app/packages/mailer/package.json ./packages/mailer/package.json
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/mailer/node_modules ./packages/mailer/node_modules
 
 EXPOSE 3001
