@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import Database from "better-sqlite3";
 import type { JobListing } from "@home-server/shared";
 
@@ -13,32 +14,54 @@ export function openDb(path: string): Database.Database {
       title TEXT NOT NULL,
       company TEXT NOT NULL,
       location TEXT,
-      first_seen_at TEXT NOT NULL
+      checksum TEXT NOT NULL,
+      last_updated_at TEXT NOT NULL
     )
   `);
 
   return _db;
 }
 
-export function filterNewJobs(db: Database.Database, jobs: JobListing[]): JobListing[] {
-  const stmt = db.prepare<[string], { url: string }>("SELECT url FROM seen_jobs WHERE url = ?");
-  return jobs.filter((job) => !stmt.get(job.url));
+export function computeChecksum(job: JobListing): string {
+  return createHash("sha256")
+    .update(`${job.title}|${job.location ?? ""}|${job.description ?? ""}`)
+    .digest("hex");
 }
 
-export function markJobsSeen(db: Database.Database, jobs: JobListing[]): void {
-  const insert = db.prepare(
-    "INSERT OR IGNORE INTO seen_jobs (url, title, company, location, first_seen_at) VALUES (@url, @title, @company, @location, @first_seen_at)"
+export function getChangedJobs(db: Database.Database, jobs: JobListing[]): JobListing[] {
+  const stmt = db.prepare<[string], { checksum: string }>(
+    "SELECT checksum FROM seen_jobs WHERE url = ?"
   );
-  const insertMany = db.transaction((batch: JobListing[]) => {
+  return jobs.flatMap((job) => {
+    const row = stmt.get(job.url);
+    if (!row) return [job];
+    if (row.checksum !== computeChecksum(job)) return [{ ...job, isUpdate: true }];
+    return [];
+  });
+}
+
+export function upsertJobs(db: Database.Database, jobs: JobListing[]): void {
+  const stmt = db.prepare(`
+    INSERT INTO seen_jobs (url, title, company, location, checksum, last_updated_at)
+    VALUES (@url, @title, @company, @location, @checksum, @last_updated_at)
+    ON CONFLICT(url) DO UPDATE SET
+      title = excluded.title,
+      company = excluded.company,
+      location = excluded.location,
+      checksum = excluded.checksum,
+      last_updated_at = excluded.last_updated_at
+  `);
+  const upsertMany = db.transaction((batch: JobListing[]) => {
     for (const job of batch) {
-      insert.run({
+      stmt.run({
         url: job.url,
         title: job.title,
         company: job.company,
         location: job.location ?? null,
-        first_seen_at: job.scrapedAt,
+        checksum: computeChecksum(job),
+        last_updated_at: job.scrapedAt,
       });
     }
   });
-  insertMany(jobs);
+  upsertMany(jobs);
 }

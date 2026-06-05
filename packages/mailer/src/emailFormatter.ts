@@ -24,6 +24,7 @@ function renderSuccessSection(result: ScrapeResult & { ok: true }): string {
       <tr>
         <td style="padding:8px 12px;font-family:sans-serif;font-size:14px;color:#111827">
           <a href="${job.url}" style="color:#2563eb;text-decoration:none">${job.title}</a>
+          ${job.isUpdate ? `<span style="margin-left:8px;font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px">Updated</span>` : ""}
         </td>
         <td style="padding:8px 12px;font-family:sans-serif;font-size:14px;color:#6b7280">${job.location ?? "—"}</td>
       </tr>`
@@ -60,9 +61,11 @@ function renderErrorSection(result: ScrapeResult & { ok: false }): string {
 export function format(payload: MailPayload): { subject: string; html: string } {
   const date = formatDate(payload.triggeredAt);
   const successCount = payload.results.filter((r) => r.ok).length;
-  const totalJobs = payload.results
+  const allJobs = payload.results
     .filter((r): r is ScrapeResult & { ok: true } => r.ok)
-    .reduce((sum, r) => sum + r.jobs.length, 0);
+    .flatMap((r) => r.jobs);
+  const newCount = allJobs.filter((j) => !j.isUpdate).length;
+  const updatedCount = allJobs.filter((j) => j.isUpdate).length;
 
   const sections = payload.results
     .map((r) =>
@@ -79,7 +82,7 @@ export function format(payload: MailPayload): { subject: string; html: string } 
     <h1 style="font-family:sans-serif;color:#111827;margin:0 0 8px">Job Listings</h1>
     <p style="font-family:sans-serif;color:#6b7280;margin:0">${date}</p>
     <p style="font-family:sans-serif;font-size:14px;color:#374151;margin:12px 0 0;background:#f3f4f6;padding:10px 14px;border-radius:6px">
-      Found <strong>${totalJobs}</strong> listing${totalJobs === 1 ? "" : "s"} from <strong>${successCount}</strong> of ${payload.results.length} sources
+      <strong>${newCount}</strong> new${updatedCount > 0 ? `, <strong>${updatedCount}</strong> updated` : ""} from <strong>${successCount}</strong> of ${payload.results.length} sources
     </p>
   </header>
   ${sections}

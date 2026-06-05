@@ -4,6 +4,8 @@ export interface JobListing {
   location?: string;
   company: string;
   scrapedAt: string;
+  description?: string;
+  isUpdate?: boolean;
 }
 
 export type ScrapeResult =

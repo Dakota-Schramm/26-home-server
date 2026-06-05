@@ -3,7 +3,7 @@ import { VercelScraper } from "./scrapers/vercel";
 import { MozillaScraper } from "./scrapers/mozilla";
 import { AppleScraper } from "./scrapers/apple";
 import { sendToMailer } from "./mailerClient";
-import { openDb, filterNewJobs, markJobsSeen } from "./db";
+import { openDb, getChangedJobs, upsertJobs } from "./db";
 import { config } from "./config";
 
 const scrapers = [
@@ -42,15 +42,19 @@ export async function run(): Promise<void> {
 
   const filteredResults: ScrapeResult[] = results.map((result) => {
     if (!result.ok) return result;
-    const newJobs = filterNewJobs(db, result.jobs);
-    console.log(`[scraper] ${result.company}: ${newJobs.length} new (of ${result.jobs.length} total)`);
-    return { ...result, jobs: newJobs };
+    const changedJobs = getChangedJobs(db, result.jobs);
+    const newCount = changedJobs.filter((j) => !j.isUpdate).length;
+    const updatedCount = changedJobs.filter((j) => j.isUpdate).length;
+    console.log(
+      `[scraper] ${result.company}: ${newCount} new, ${updatedCount} updated (of ${result.jobs.length} total)`
+    );
+    return { ...result, jobs: changedJobs };
   });
 
-  const newJobs = filteredResults.flatMap((r) => (r.ok ? r.jobs : []));
+  const changedJobs = filteredResults.flatMap((r) => (r.ok ? r.jobs : []));
 
-  if (newJobs.length === 0) {
-    console.log("[scraper] no new jobs, skipping email");
+  if (changedJobs.length === 0) {
+    console.log("[scraper] no new or updated jobs, skipping email");
     return;
   }
 
@@ -62,7 +66,7 @@ export async function run(): Promise<void> {
   try {
     await sendToMailer(payload);
     console.log("[scraper] payload sent to mailer");
-    markJobsSeen(db, newJobs);
+    upsertJobs(db, changedJobs);
   } catch (err) {
     console.error("[scraper] could not reach mailer:", err);
     process.exit(1);
