@@ -10,13 +10,17 @@ export class VercelScraper extends BaseScraper {
     const now = new Date().toISOString();
     const jobs: JobListing[] = [];
 
-    $("section#positions a").each((_i, el) => {
-      const title = $(el).text().trim();
-      const href = $(el).attr("href") ?? "";
+    $('section#positions a[data-testid^="careers/position/"]').each((_i, el) => {
+      const anchor = $(el);
+      const title = anchor.find('[data-testid^="careers/position-title/"]').first().text().trim();
+      const location =
+        anchor.find('[data-testid^="careers/position-locations/"]').first().text().trim() ||
+        undefined;
+      const href = anchor.attr("href") ?? "";
       if (!title) return;
 
       const url = href.startsWith("http") ? href : `${BASE_URL}${href}`;
-      jobs.push({ title, url, company: "Vercel", scrapedAt: now });
+      jobs.push({ title, url, location, company: "Vercel", scrapedAt: now });
     });
 
     return jobs;
