@@ -23,7 +23,7 @@ function renderSuccessSection(result: ScrapeResult & { ok: true }): string {
       (job) => `
       <tr>
         <td style="padding:8px 12px;font-family:sans-serif;font-size:14px;color:#111827">
-          <a href="${job.url}" style="color:#2563eb;text-decoration:none">${job.title}</a>
+          <a href="${job.url}" style="color:#2563eb;text-decoration:none">${job.title || "Untitled position"}</a>
           ${job.isUpdate ? `<span style="margin-left:8px;font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:1px 6px">Updated</span>` : ""}
         </td>
         <td style="padding:8px 12px;font-family:sans-serif;font-size:14px;color:#6b7280">${job.location ?? "—"}</td>

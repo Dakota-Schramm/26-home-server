@@ -36,11 +36,12 @@ export class NintendoScraper extends BaseScraper {
         return typeof jobField === "string" && SOFTWARE_JOB_FIELDS.has(jobField.trim());
       })
       .map((job) => ({
-        title: job.title.trim(),
+        title: typeof job.title === "string" ? job.title.trim() : "",
         url: job.absolute_url,
         location: job.location?.name || undefined,
         company: "Nintendo",
         scrapedAt: now,
-      }));
+      }))
+      .filter((job) => job.title.length > 0);
   }
 }
