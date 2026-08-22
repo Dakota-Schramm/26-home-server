@@ -3,6 +3,8 @@ import { VercelScraper } from "./scrapers/vercel";
 import { MozillaScraper } from "./scrapers/mozilla";
 import { AppleScraper } from "./scrapers/apple";
 import { RiotScraper } from "./scrapers/riot";
+import { OklahomaScraper } from "./scrapers/oklahoma";
+import { DiscordScraper } from "./scrapers/discord";
 import { sendToMailer } from "./mailerClient";
 import { openDb, getChangedJobs, upsertJobs, getScraperLastRan, upsertScraperRun } from "./db";
 import { config } from "./config";
@@ -13,7 +15,9 @@ export const scrapers = [
   { id: 1, company: "Vercel", instance: new VercelScraper() },
   { id: 2, company: "Mozilla", instance: new MozillaScraper() },
   { id: 3, company: "Apple", instance: new AppleScraper() },
-  { id: 4, company: "Riot Games", instance: new RiotScraper() },
+  { id: 4, company: "Discord", instance: new DiscordScraper() },
+  { id: 5, company: "State of Oklahoma", instance: new OklahomaScraper() },
+  { id: 6, company: "Riot Games", instance: new RiotScraper() },
 ];
 
 export async function runScraper(id: number): Promise<void> {
