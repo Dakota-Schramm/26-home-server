@@ -5,7 +5,7 @@
     "build": "pnpm -r run build",
     "dev:mailer": "dotenv -e .env -- pnpm --filter=@home-server/mailer run dev",
     "dev:scraper": "dotenv -e .env -- pnpm --filter=@home-server/scraper run dev",
-    "deploy": "dotenv -e .env.deploy ./deploy.sh"
+    "deploy": "dotenv -e .env.deploy ./deploy"
   },
   "devDependencies": {
     "dotenv-cli": "^11.0.0"

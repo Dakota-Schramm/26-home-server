@@ -1,0 +1,100 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'open3'
+
+# --- Configuration ---
+# Override these via environment variables, or edit the defaults below.
+PI_HOST = ENV.fetch('PI_HOST', 'pi@raspberrypi.local')              # SSH user@host or IP of your Raspberry Pi
+PI_REPO_PATH = ENV.fetch('PI_REPO_PATH', '/home/pi/26-home-server') # Absolute path to this repo on the Pi
+
+IMAGES = %w[26-home-server-mailer 26-home-server-scraper].freeze
+
+def main
+  puts '==> Checking local repo is committed and pushed'
+  status = capture!('git status --porcelain')
+  die('uncommitted changes present. Commit or stash before deploying.') unless status.strip.empty?
+
+  run!('git fetch origin main')
+  local_head = capture!('git rev-parse HEAD').strip
+  remote_head = capture!('git rev-parse origin/main').strip
+  die('local HEAD does not match origin/main. Push your changes before deploying.') if local_head != remote_head
+
+  puts '==> Building Docker images locally (docker compose build)'
+  start = Time.now.to_i
+  run!('docker compose build')
+  step_time('build', start)
+
+  puts "==> Sending images to #{PI_HOST}"
+  start = Time.now.to_i
+  sizes = capture!("docker image inspect #{IMAGES.join(' ')} --format='{{.Size}}'")
+  img_size = sizes.lines.map(&:to_i).sum
+  puts "    ~#{img_size / 1024 / 1024}MB uncompressed (smaller after gzip)"
+
+  images = IMAGES.join(' ')
+  if command_available?('pv')
+    run!("docker save #{images} | pv -s #{img_size} | gzip | ssh #{PI_HOST} 'gunzip | docker load'")
+  else
+    puts "    (tip: 'brew install pv' shows a live progress bar here instead of a heartbeat)"
+    pid = Process.spawn("docker save #{images} | gzip | ssh #{PI_HOST} 'gunzip | docker load'")
+    loop do
+      _, exited = Process.waitpid2(pid, Process::WNOHANG)
+      break if exited
+
+      sleep 5
+      puts "    ...still transferring (#{Time.now.to_i - start}s elapsed)"
+    end
+    _, xfer_status = Process.waitpid2(pid)
+    die('image transfer failed') unless xfer_status.success?
+  end
+  step_time('transfer', start)
+
+  puts "==> Connecting to #{PI_HOST}"
+  start = Time.now.to_i
+
+  remote_script = <<~REMOTE
+    set -euo pipefail
+    cd "#{PI_REPO_PATH}"
+
+    echo "==> Pulling latest code (git pull origin main)"
+    git pull origin main
+
+    echo "==> Starting containers (docker compose up -d)"
+    docker compose up -d
+
+    echo "==> Pruning dangling images and stale build cache to reclaim disk space"
+    docker image prune -f
+    docker builder prune -f
+  REMOTE
+
+  IO.popen(['ssh', PI_HOST, 'bash', '-s'], 'w') { |io| io.write(remote_script) }
+  die('remote apply failed') unless $?.success?
+  step_time('remote apply', start)
+
+  puts '==> Deploy complete.'
+end
+
+def die(message)
+  warn "error: #{message}"
+  exit 1
+end
+
+def run!(cmd)
+  system(cmd) || die("command failed: #{cmd}")
+end
+
+def capture!(cmd)
+  out, status = Open3.capture2(cmd)
+  die("command failed: #{cmd}") unless status.success?
+  out
+end
+
+def step_time(label, start)
+  puts "    (#{label}: #{Time.now.to_i - start}s)"
+end
+
+def command_available?(name)
+  system("command -v #{name} > /dev/null 2>&1")
+end
+
+main if __FILE__ == $PROGRAM_NAME
