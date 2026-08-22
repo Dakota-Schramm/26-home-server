@@ -2,6 +2,7 @@ import type { MailPayload, ScrapeResult } from "@home-server/shared";
 import { VercelScraper } from "./scrapers/vercel";
 import { MozillaScraper } from "./scrapers/mozilla";
 import { AppleScraper } from "./scrapers/apple";
+import { OklahomaScraper } from "./scrapers/oklahoma";
 import { sendToMailer } from "./mailerClient";
 import { openDb, getChangedJobs, upsertJobs, getScraperLastRan, upsertScraperRun } from "./db";
 import { config } from "./config";
@@ -12,6 +13,7 @@ export const scrapers = [
   { id: 1, company: "Vercel", instance: new VercelScraper() },
   { id: 2, company: "Mozilla", instance: new MozillaScraper() },
   { id: 3, company: "Apple", instance: new AppleScraper() },
+  { id: 4, company: "State of Oklahoma", instance: new OklahomaScraper() },
 ];
 
 export async function runScraper(id: number): Promise<void> {
