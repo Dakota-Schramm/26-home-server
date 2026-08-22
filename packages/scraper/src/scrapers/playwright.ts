@@ -4,7 +4,7 @@ import type { JobListing } from "@home-server/shared";
 
 export abstract class PlaywrightScraper {
   protected async fetch(url: string, selector: string): Promise<cheerio.CheerioAPI> {
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ args: ["--disable-dev-shm-usage"] });
     try {
       const page = await browser.newPage();
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30_000 });
