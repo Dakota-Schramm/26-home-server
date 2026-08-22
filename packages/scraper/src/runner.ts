@@ -1,29 +1,52 @@
-import type { MailPayload, ScrapeResult } from "@home-server/shared";
-import { VercelScraper } from "./scrapers/vercel";
-import { MozillaScraper } from "./scrapers/mozilla";
-import { AppleScraper } from "./scrapers/apple";
-import { NintendoScraper } from "./scrapers/nintendo";
+import { readdirSync } from "fs";
+import { basename, extname, join } from "path";
+import type { JobListing, MailPayload, ScrapeResult } from "@home-server/shared";
 import { sendToMailer } from "./mailerClient";
 import { openDb, getChangedJobs, upsertJobs, getScraperLastRan, upsertScraperRun } from "./db";
 import { config } from "./config";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
-export const scrapers = [
-  { id: 1, company: "Vercel", instance: new VercelScraper() },
-  { id: 2, company: "Mozilla", instance: new MozillaScraper() },
-  { id: 3, company: "Apple", instance: new AppleScraper() },
-  { id: 4, company: "Nintendo", instance: new NintendoScraper() },
-];
+const SCRAPERS_DIR = join(__dirname, "scrapers");
+const SHARED_FILES = new Set(["base", "cheerio", "playwright"]);
 
-export async function runScraper(id: number): Promise<void> {
-  const scraper = scrapers.find((s) => s.id === id);
-  if (!scraper) throw new Error(`No scraper with id ${id}`);
+interface Scraper {
+  scrape(): Promise<JobListing[]>;
+}
 
-  const { company, instance } = scraper;
+interface ScraperConstructor {
+  new (): Scraper;
+  company: string;
+}
+
+function loadScrapers(): { company: string; instance: Scraper }[] {
+  const names = readdirSync(SCRAPERS_DIR)
+    .filter((file) => (file.endsWith(".ts") || file.endsWith(".js")) && !file.endsWith(".d.ts"))
+    .map((file) => basename(file, extname(file)))
+    .filter((name) => !SHARED_FILES.has(name))
+    .sort();
+
+  return names.map((name) => {
+    const exported = Object.values(require(`./scrapers/${name}`) as Record<string, unknown>);
+    const ScraperClass = exported.find(
+      (value): value is ScraperConstructor => typeof value === "function"
+    );
+    if (!ScraperClass) throw new Error(`scrapers/${name} must export a scraper class`);
+
+    return { company: ScraperClass.company, instance: new ScraperClass() };
+  });
+}
+
+export const scrapers = loadScrapers();
+
+export async function runScraper(company: string): Promise<void> {
+  const scraper = scrapers.find((s) => s.company === company);
+  if (!scraper) throw new Error(`No scraper for company "${company}"`);
+
+  const { instance } = scraper;
   const db = openDb(config.dbPath);
 
-  const lastRanAt = getScraperLastRan(db, id);
+  const lastRanAt = getScraperLastRan(db, company);
   if (lastRanAt) {
     const elapsed = Date.now() - new Date(lastRanAt).getTime();
     if (elapsed < TWENTY_FOUR_HOURS_MS) {
@@ -55,7 +78,7 @@ export async function runScraper(id: number): Promise<void> {
   }
 
   if (result.ok && result.jobs.length === 0) {
-    upsertScraperRun(db, id, company);
+    upsertScraperRun(db, company);
     return;
   }
 
@@ -68,7 +91,7 @@ export async function runScraper(id: number): Promise<void> {
     await sendToMailer(payload);
     console.log(`[scraper] ${company}: payload sent to mailer`);
     if (result.ok) upsertJobs(db, result.jobs);
-    upsertScraperRun(db, id, company);
+    upsertScraperRun(db, company);
   } catch (err) {
     console.error(`[scraper] could not reach mailer:`, err);
     process.exit(1);

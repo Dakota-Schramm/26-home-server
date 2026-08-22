@@ -11,10 +11,10 @@ export function startScheduler(): void {
   let index = 0;
 
   setInterval(() => {
-    const { id } = scrapers[index];
+    const { company } = scrapers[index];
     index = (index + 1) % count;
-    runScraper(id).catch((err) => {
-      console.error(`[scraper] unhandled error for scraper ${id}:`, err);
+    runScraper(company).catch((err) => {
+      console.error(`[scraper] unhandled error for scraper ${company}:`, err);
     });
   }, intervalMs);
 }
