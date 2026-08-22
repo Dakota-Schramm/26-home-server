@@ -15,6 +15,10 @@ cd "$PI_REPO_PATH"
 echo "==> Pulling latest code (git pull origin main)"
 git pull origin main
 
+echo "==> Pruning dangling images and build cache to free disk space before building"
+docker image prune -f
+docker builder prune -f
+
 echo "==> Building Docker images (docker compose build)"
 docker compose build
 
