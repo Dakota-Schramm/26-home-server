@@ -20,6 +20,8 @@ interface NintendoJobPosting {
 }
 
 export class NintendoScraper extends BaseScraper {
+  static readonly company = "Nintendo";
+
   async scrape(): Promise<JobListing[]> {
     const $ = await this.fetch(JOBS_URL);
     const now = new Date().toISOString();
@@ -39,7 +41,7 @@ export class NintendoScraper extends BaseScraper {
         title: job.title.trim(),
         url: job.absolute_url,
         location: job.location?.name || undefined,
-        company: "Nintendo",
+        company: NintendoScraper.company,
         scrapedAt: now,
       }));
   }
