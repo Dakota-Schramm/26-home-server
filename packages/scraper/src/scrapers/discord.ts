@@ -6,6 +6,8 @@ const CAREERS_URL = `${BASE_URL}/careers#all-jobs`;
 const JOB_SELECTOR = ".jobs-list .job-item:not(.is-clone)";
 
 export class DiscordScraper extends PlaywrightScraper {
+  static readonly company = "Discord";
+
   async scrape(): Promise<JobListing[]> {
     const $ = await this.fetch(CAREERS_URL, JOB_SELECTOR);
     const now = new Date().toISOString();
@@ -19,7 +21,7 @@ export class DiscordScraper extends PlaywrightScraper {
       if (!title) return;
 
       const url = href.startsWith("http") ? href : `${BASE_URL}${href}`;
-      jobs.push({ title, url, location, company: "Discord", scrapedAt: now });
+      jobs.push({ title, url, location, company: DiscordScraper.company, scrapedAt: now });
     });
 
     return jobs;

@@ -4,6 +4,8 @@ import { BaseScraper } from "./base";
 const LISTINGS_URL = "https://www.mozilla.org/en-US/careers/listings/";
 
 export class MozillaScraper extends BaseScraper {
+  static readonly company = "Mozilla";
+
   async scrape(): Promise<JobListing[]> {
     const $ = await this.fetch(LISTINGS_URL);
     const now = new Date().toISOString();
@@ -18,7 +20,7 @@ export class MozillaScraper extends BaseScraper {
       const url = href.startsWith("http") ? href : `https://www.mozilla.org${href}`;
       const location = $(row).find("dd.job-post-location").text().trim() || undefined;
 
-      jobs.push({ title, url, location, company: "Mozilla", scrapedAt: now });
+      jobs.push({ title, url, location, company: MozillaScraper.company, scrapedAt: now });
     });
 
     return jobs;

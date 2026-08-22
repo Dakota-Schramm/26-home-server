@@ -19,6 +19,8 @@ interface RiotJobPosting {
 }
 
 export class RiotScraper extends BaseScraper {
+  static readonly company = "Riot Games";
+
   async scrape(): Promise<JobListing[]> {
     const $ = await this.fetch(CAREERS_URL);
     const now = new Date().toISOString();
@@ -34,7 +36,7 @@ export class RiotScraper extends BaseScraper {
         title: job.title.trim(),
         url: `${BASE_URL}${job.url}`,
         location: job.office || undefined,
-        company: "Riot Games",
+        company: RiotScraper.company,
         scrapedAt: now,
       }));
   }
