@@ -20,6 +20,9 @@ docker compose build
 
 echo "==> Starting containers (docker compose up -d)"
 docker compose up -d
+
+echo "==> Pruning dangling images to reclaim disk space"
+docker image prune -f
 EOF
 
 echo "==> Deploy complete."
