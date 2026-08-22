@@ -21,7 +21,8 @@ export function openDb(path: string): Database.Database {
       id INTEGER PRIMARY KEY,
       company TEXT NOT NULL,
       last_ran_at TEXT
-    )
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_scrapers_company ON scrapers(company);
   `);
 
   return _db;
@@ -45,19 +46,19 @@ export function getChangedJobs(db: Database.Database, jobs: JobListing[]): JobLi
   });
 }
 
-export function getScraperLastRan(db: Database.Database, id: number): string | null {
-  const row = db.prepare<[number], { last_ran_at: string | null }>(
-    "SELECT last_ran_at FROM scrapers WHERE id = ?"
-  ).get(id);
+export function getScraperLastRan(db: Database.Database, company: string): string | null {
+  const row = db.prepare<[string], { last_ran_at: string | null }>(
+    "SELECT last_ran_at FROM scrapers WHERE company = ?"
+  ).get(company);
   return row?.last_ran_at ?? null;
 }
 
-export function upsertScraperRun(db: Database.Database, id: number, company: string): void {
+export function upsertScraperRun(db: Database.Database, company: string): void {
   db.prepare(`
-    INSERT INTO scrapers (id, company, last_ran_at)
-    VALUES (?, ?, ?)
-    ON CONFLICT(id) DO UPDATE SET last_ran_at = excluded.last_ran_at
-  `).run(id, company, new Date().toISOString());
+    INSERT INTO scrapers (company, last_ran_at)
+    VALUES (?, ?)
+    ON CONFLICT(company) DO UPDATE SET last_ran_at = excluded.last_ran_at
+  `).run(company, new Date().toISOString());
 }
 
 export function upsertJobs(db: Database.Database, jobs: JobListing[]): void {

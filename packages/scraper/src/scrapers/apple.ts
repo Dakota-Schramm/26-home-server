@@ -5,6 +5,8 @@ const BASE_URL = "https://jobs.apple.com";
 const SEARCH_URL = `${BASE_URL}/en-us/search?team=apps-and-frameworks-SFTWR-AF`;
 
 export class AppleScraper extends BaseScraper {
+  static readonly company = "Apple";
+
   async scrape(): Promise<JobListing[]> {
     const $ = await this.fetch(SEARCH_URL);
     const now = new Date().toISOString();
@@ -16,7 +18,7 @@ export class AppleScraper extends BaseScraper {
       if (!title) return;
 
       const url = href.startsWith("http") ? href : `${BASE_URL}${href}`;
-      jobs.push({ title, url, company: "Apple", scrapedAt: now });
+      jobs.push({ title, url, company: AppleScraper.company, scrapedAt: now });
     });
 
     return jobs;

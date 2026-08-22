@@ -5,6 +5,8 @@ const BASE_URL = "https://vercel.com";
 const CAREERS_URL = `${BASE_URL}/careers`;
 
 export class VercelScraper extends BaseScraper {
+  static readonly company = "Vercel";
+
   async scrape(): Promise<JobListing[]> {
     const $ = await this.fetch(CAREERS_URL);
     const now = new Date().toISOString();
@@ -20,7 +22,7 @@ export class VercelScraper extends BaseScraper {
       if (!title) return;
 
       const url = href.startsWith("http") ? href : `${BASE_URL}${href}`;
-      jobs.push({ title, url, location, company: "Vercel", scrapedAt: now });
+      jobs.push({ title, url, location, company: VercelScraper.company, scrapedAt: now });
     });
 
     return jobs;

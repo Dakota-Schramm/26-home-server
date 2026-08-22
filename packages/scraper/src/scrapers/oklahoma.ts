@@ -32,6 +32,8 @@ interface WorkdayJobsResponse {
 }
 
 export class OklahomaScraper extends BaseScraper {
+  static readonly company = "State of Oklahoma";
+
   private async fetchJson(offset: number): Promise<WorkdayJobsResponse> {
     const response = await axios.post<WorkdayJobsResponse>(
       API_URL,
@@ -78,7 +80,7 @@ export class OklahomaScraper extends BaseScraper {
       title: posting.title,
       url: `${JOB_BASE_URL}${posting.externalPath}`,
       location: posting.locationsText || undefined,
-      company: "State of Oklahoma",
+      company: OklahomaScraper.company,
       scrapedAt: now,
     }));
   }
