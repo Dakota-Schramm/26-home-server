@@ -3,10 +3,37 @@
 
 require 'open3'
 
+def die(message)
+  warn "error: #{message}"
+  exit 1
+end
+
+def run!(cmd)
+  system(cmd) || die("command failed: #{cmd}")
+end
+
+def capture!(cmd)
+  out, status = Open3.capture2(cmd)
+  die("command failed: #{cmd}") unless status.success?
+  out
+end
+
+def step_time(label, start)
+  puts "    (#{label}: #{Time.now.to_i - start}s)"
+end
+
+def command_available?(name)
+  system("command -v #{name} > /dev/null 2>&1")
+end
+
+def require_env(key)
+  ENV.fetch(key) { die("missing required environment variable #{key}. Set it in .env.deploy or export it before running deploy.") }
+end
+
 # --- Configuration ---
-# Override these via environment variables, or edit the defaults below.
-PI_HOST = ENV.fetch('PI_HOST', 'pi@raspberrypi.local')              # SSH user@host or IP of your Raspberry Pi
-PI_REPO_PATH = ENV.fetch('PI_REPO_PATH', '/home/pi/26-home-server') # Absolute path to this repo on the Pi
+# Must be set via environment variables (see .env.deploy).
+PI_HOST = require_env('PI_HOST')             # SSH user@host or IP of your Raspberry Pi
+PI_REPO_PATH = require_env('PI_REPO_PATH')   # Absolute path to this repo on the Pi
 
 IMAGES = %w[26-home-server-mailer 26-home-server-scraper].freeze
 
@@ -72,29 +99,6 @@ def main
   step_time('remote apply', start)
 
   puts '==> Deploy complete.'
-end
-
-def die(message)
-  warn "error: #{message}"
-  exit 1
-end
-
-def run!(cmd)
-  system(cmd) || die("command failed: #{cmd}")
-end
-
-def capture!(cmd)
-  out, status = Open3.capture2(cmd)
-  die("command failed: #{cmd}") unless status.success?
-  out
-end
-
-def step_time(label, start)
-  puts "    (#{label}: #{Time.now.to_i - start}s)"
-end
-
-def command_available?(name)
-  system("command -v #{name} > /dev/null 2>&1")
 end
 
 main if __FILE__ == $PROGRAM_NAME
