@@ -11,6 +11,10 @@ PI_REPO_PATH = ENV.fetch('PI_REPO_PATH', '/home/pi/26-home-server') # Absolute p
 IMAGES = %w[26-home-server-mailer 26-home-server-scraper].freeze
 
 def main
+  unless ENV['npm_lifecycle_event'] == 'deploy'
+    die('run this via `pnpm run deploy` (loads config from .env.deploy) instead of invoking ./deploy directly.')
+  end
+
   puts '==> Checking local repo is committed and pushed'
   status = capture!('git status --porcelain')
   die('uncommitted changes present. Commit or stash before deploying.') unless status.strip.empty?
