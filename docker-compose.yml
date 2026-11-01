@@ -1,5 +1,6 @@
 services:
   mailer:
+    image: ghcr.io/dakota-schramm/26-home-server-mailer:latest
     build:
       context: .
       dockerfile: packages/mailer/Dockerfile
@@ -14,6 +15,7 @@ services:
     restart: unless-stopped
 
   scraper:
+    image: ghcr.io/dakota-schramm/26-home-server-scraper:latest
     build:
       context: .
       dockerfile: packages/scraper/Dockerfile
